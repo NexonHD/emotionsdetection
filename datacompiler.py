@@ -17,7 +17,6 @@ LABELS = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'sad', 'surprised
 SUBDATASETS = ["train", "test"]
 
 def get_image_data_array(datasetpath, subdataset):
-    data = numpy.zeros((1,48,48))
     i = 0
 
     image_list = []
@@ -31,10 +30,6 @@ def get_image_data_array(datasetpath, subdataset):
             if(i%(100)==0): print(i)
 
     data = numpy.array(image_list)
-
-    data = numpy.transpose(data, (1,2,0))
-
-    data = numpy.delete(data, 0, axis=2)
 
     return data
 
@@ -102,7 +97,6 @@ def compileDataset(subdatasets, path, dataname):
     duration = time.time()
     for subdataset in subdatasets:
         sorted_data = get_image_data_array(path, subdataset)
-        print(sorted_data.shape)
         sorted_labels = get_labels_array(path, subdataset)
         data, labels = shuffle(sorted_data, sorted_labels, get_random_order(sorted_data))
         save_npy(subdataset, data, labels)
