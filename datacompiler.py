@@ -8,117 +8,107 @@ import os as os
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import datasets, layers, models
+import time
+#from tensorflow.keras import datasets, layers, models
 
-datasetpath = 'C:/Users/linie/Documents/Emotions Detection/data/'
-dataname = 'test'
-imgpath = r'C:\\Users\\linie\\Documents\\Emotions Detection\\scripts'
-labels = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'sad', 'surprised']
-datanames = ["train", "test"]
+DATA_NAME = 'testdata'
+DATASET_PATH = 'C:/Users/linie/vsc/emotionsdetection/data/'
+LABELS = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'sad', 'surprised']
+SUBDATASETS = ["train", "test"]
 
-#image preprocessor
-#leave path empty ('') if same path as the program
-filename = 'sample.png'
+def get_image_data_array(datasetpath, subdataset):
+    data = numpy.zeros((1,48,48))
+    i = 0
 
-inputImage = cv2.imread((imgpath+'\\'+filename))
-imageArray = numpy.asarray(inputImage)
-imageArray = cv2.resize(imageArray, (48, 48))
-imageArray = cv2.cvtColor(imageArray, cv2.COLOR_BGR2GRAY)
-outputImage = Image.fromarray(imageArray)
-outputImage.save(imgpath+'\\'+'resized.png')
+    image_list = []
 
-#dataset compiler (dont run, takes a lot of time estimate: 30 minutes) import from .npy instead this is only for creation of .npy files
-data = numpy.zeros((1,48,48))
-i = 0
+    for directory in os.listdir(datasetpath + subdataset):
+        for file in os.listdir((datasetpath + subdataset + '/' + directory)):
+            image = Image.open((datasetpath + subdataset + '/' + directory + "/" + file))
+            imgarr = numpy.asarray(image)
+            image_list.append(imgarr)
+            i = i+1
+            if(i%(100)==0): print(i)
 
-#loop through directories in path
-for directory in os.listdir(datasetpath + dataname):
+    data = numpy.array(image_list)
+
+    data = numpy.transpose(data, (1,2,0))
+
+    data = numpy.delete(data, 0, axis=2)
+
+    return data
+
+def get_labels_array(datasetpath, subdataset):
+    labels = numpy.empty([0])
+
+    currentlabel = 0
+    for directory in os.listdir(datasetpath + subdataset):
+        for fileindex in range(len(os.listdir(datasetpath + subdataset + '/' +directory))):
+            labels = numpy.append(labels, currentlabel)
+        currentlabel = currentlabel + 1
+    return labels
+
+def get_random_order(data):
+    randomorder = numpy.empty(shape=(0,))
+    for n in range(numpy.shape(data)[2]):
+        randomorder = numpy.append(randomorder, n)
+
+    numpy.random.shuffle(randomorder)
+    return randomorder
+
+def shuffle(data, labels, randomorder):
+    shuffled_data = numpy.copy(data)
+    for n in range(len(randomorder)):
+        randomindex = randomorder[n]
+        shuffled_data[:,:,int(randomindex)] = data[:,:,int(n)]
     
-    #loop through files in directory
-    for file in os.listdir((datasetpath + dataname + '/' + directory)):
-        #create 2d array from img
-        image = Image.open((datasetpath + dataname + '/' + directory + "/" + file))
-        imgarr = numpy.asarray(image)
-        
-        #append image (2d array) to data (3d array in format [picture index][x][y])
-        data = numpy.vstack((data, imgarr[None]))
-        i = i+1
-        if (i%100==0):
-            print(i)
+    shuffled_labels = numpy.copy(labels)
+    for realindex in range(len(randomorder)):
+        randomindex = randomorder[realindex]
+        shuffled_labels[int(randomindex)] = labels[int(realindex)]
+    return shuffled_data,shuffled_labels
 
-#transpose 3d array to format [x][y][picture index]
-data = numpy.transpose(data, (1,2,0))
+def save_npy(subdataset, shuffled_data, shuffled_labels):
+    numpy.save('shuffled_'+ subdataset + 'data.npy', shuffled_data)
+    numpy.save('shuffled_'+ subdataset + 'labels.npy', shuffled_labels)
 
-#delete wrong item at index=0
-data = numpy.delete(data, 0, axis=2)
+def load_npy(subdataset):
+    shuffled_data = numpy.load('shuffled_' + subdataset + 'data.npy')
+    shuffled_labels = numpy.load('shuffled_' + subdataset + 'labels.npy')
 
-#create an empty 1d array to store labels
-labels = numpy.empty(shape=(0,))
+def merge(subdatasets):
+    mergeddata_dict = {}
+    dict_index = 0
 
-currentlabel = 0
-#loop through directories in path
-for directory in os.listdir(datasetpath + dataname):
-    #for every directory append n (size of directory) entries with value currentlabel to empty array
-    for fileindex in range(len(os.listdir(datasetpath + dataname + '/' +directory))):
-        labels = numpy.append(labels, currentlabel)
-    currentlabel = currentlabel + 1
-
-#create a random order to order both labels and data the same way but random
-randomorder = numpy.empty(shape=(0,))
-
-#get 1d array with numbers 0 through 28708 in order
-for n in range(numpy.shape(data)[2]):
-    randomorder = numpy.append(randomorder, n)
-
-numpy.random.shuffle(randomorder)
-
-#shuffle data according to randomorder
-shuffled_data = numpy.copy(data)
-for n in range(len(randomorder)):
-    randomindex = randomorder[n]
-    shuffled_data[:,:,int(randomindex)] = data[:,:,int(n)]
+    for subdataset in subdatasets:
+        data = numpy.load('shuffled_' + subdataset + 'data.npy')
+        mergeddata_dict[str(dict_index)] = data
+        dict_index = dict_index + 1
     
-#shuffle labels according to randomorder
-shuffled_labels = numpy.copy(labels)
-for realindex in range(len(randomorder)):
-    randomindex = randomorder[realindex]
-    shuffled_labels[int(randomindex)] = labels[int(realindex)]
+        labels = numpy.load('shuffled_' + subdataset + 'labels.npy')
+        mergeddata_dict[str(dict_index)] = labels
+        dict_index = dict_index + 1
+    return mergeddata_dict
 
-#save 3d data array as .npy in workingdirectory
-#numpy.save(dataname + 'data.npy', data)
-#numpy.save(dataname + 'labels.npy', labels)
+def save(dataname, mergeddata_dict):
+    numpy.savez(dataname, **mergeddata_dict)
 
-numpy.save('shuffled_'+ dataname + 'data.npy', shuffled_data)
-numpy.save('shuffled_'+ dataname + 'labels.npy', shuffled_labels)
+def load():
+    mergeddata_dict = numpy.load('data.npz')
+    return mergeddata_dict
 
-#load data from <name>data.npy instead of creating a new 3d array
-#data = numpy.load(dataname + 'data.npy')
-#labels = numpy.load(dataname + 'labels.npy')
 
-shuffled_data = numpy.load('shuffled_' + dataname + 'data.npy')
-shuffled_labels = numpy.load('shuffled_' + dataname + 'labels.npy')
+def compileDataset(subdatasets, path, dataname):
+    duration = time.time()
+    for subdataset in subdatasets:
+        sorted_data = get_image_data_array(path, subdataset)
+        print(sorted_data.shape)
+        sorted_labels = get_labels_array(path, subdataset)
+        data, labels = shuffle(sorted_data, sorted_labels, get_random_order(sorted_data))
+        save_npy(subdataset, data, labels)
+    merged = merge(subdatasets)
+    save((path + '/' + dataname), merged)
+    duration = time.time() - duration
+    print(f'{duration} saved as {dataname}.npz to {path}')
 
-#merge .npy data into a .npz file
-
-mergeddata_dict = {}
-dict_index = 0
-
-for dataname in datanames:
-    data = numpy.load('shuffled_' + dataname + 'data.npy')
-    mergeddata_dict[dict_index] = data
-    dict_index = dict_index + 1
-    
-    labels = numpy.load('shuffled_' + dataname + 'labels.npy')
-    mergeddata_dict[dict_index] = labels
-    dict_index = dict_index + 1
-
-# ** dictionary unpacking (here **arrays_dict = (arr0=0data, arr1=0labels, arr2=1data, arr3=1labels ...))
-numpy.savez('data', **mergeddata_dict)
-
-#dict = {
-#    0 = shuffled_train_data
-#    1 = shuffled_train_labels
-#    2 = ...
-#}
-
-mergeddata_dict = numpy.load('data.npz')
+compileDataset(SUBDATASETS, DATASET_PATH, DATA_NAME)
