@@ -1,47 +1,50 @@
-#pip install opencv-python
 #pip install pillow
 #pip install numpy
-import cv2
 from PIL import Image
 import numpy
 import os as os
-import matplotlib.pyplot as plt
-import tensorflow as tf
-from tensorflow import keras
 import time
-#from tensorflow.keras import datasets, layers, models
 
 DATA_NAME = 'data'
 DATASET_PATH = 'C:/Users/linie/vsc/emotionsdetection/data/'
 LABELS = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'sad', 'surprised']
 SUBDATASETS = ["train", "test"]
-KEEP_TEMP_FILES = False
+KEEP_TEMP_FILES = True
 
 def get_image_data_array(datasetpath, subdataset):
+    #dataset compiler (dont run, takes a lot of time estimate: 30 minutes) import from .npy instead this is only for creation of .npy files
+    data = numpy.zeros((1,48,48))
     i = 0
 
-    image_list = []
-
+    #loop through directories in path
     for directory in os.listdir(datasetpath + subdataset):
+        
+        #loop through files in directory
         for file in os.listdir((datasetpath + subdataset + '/' + directory)):
+            #create 2d array from img
             image = Image.open((datasetpath + subdataset + '/' + directory + "/" + file))
             imgarr = numpy.asarray(image)
-            image_list.append(imgarr)
+            
+            #append image (2d array) to data (3d array in format [picture index][x][y])
+            data = numpy.vstack((data, imgarr[None]))
             i = i+1
-            if(i%(100)==0): print(i)
-
-    data = numpy.array(image_list)
-
+            if (i%100==0):
+                print(i)
+                
+    #delete wrong item at index=0
+    data = numpy.delete(data, 0, axis=2)
     return data
 
 def get_labels_array(datasetpath, subdataset):
     labels = numpy.empty([0])
 
     currentlabel = 0
-    for directory in os.listdir(datasetpath + subdataset):
-        for fileindex in range(len(os.listdir(datasetpath + subdataset + '/' +directory))):
+    for directory in os.listdir(f'{datasetpath}{subdataset}'):
+        for _ in range(len(os.listdir(f'{datasetpath}{subdataset}/{directory}'))):
             labels = numpy.append(labels, currentlabel)
         currentlabel = currentlabel + 1
+
+    print(f'{subdataset} labels shape {labels.shape}')
     return labels
 
 def get_random_order(data):
@@ -65,23 +68,19 @@ def shuffle(data, labels, randomorder):
     return shuffled_data,shuffled_labels
 
 def save_npy(subdataset, shuffled_data, shuffled_labels, path):
-    numpy.save(f'{path}shuffled_{subdataset}data.npy', shuffled_data)
-    numpy.save(f'{path}shuffled_{subdataset}labels.npy', shuffled_labels)
+    numpy.save(f'{path}temp/shuffled_{subdataset}data.npy', shuffled_data)
+    numpy.save(f'{path}temp/shuffled_{subdataset}labels.npy', shuffled_labels)
 
-def load_npy(subdataset):
-    shuffled_data = numpy.load('shuffled_' + subdataset + 'data.npy')
-    shuffled_labels = numpy.load('shuffled_' + subdataset + 'labels.npy')
-
-def merge(subdatasets):
+def merge(subdatasets, path):
     mergeddata_dict = {}
     dict_index = 0
 
     for subdataset in subdatasets:
-        data = numpy.load('shuffled_' + subdataset + 'data.npy')
+        data = numpy.load(f'{path}temp/shuffled_{subdataset}data.npy')
         mergeddata_dict[str(dict_index)] = data
         dict_index = dict_index + 1
     
-        labels = numpy.load('shuffled_' + subdataset + 'labels.npy')
+        labels = numpy.load(f'{path}temp/shuffled_{subdataset}labels.npy')
         mergeddata_dict[str(dict_index)] = labels
         dict_index = dict_index + 1
     return mergeddata_dict
@@ -101,14 +100,15 @@ def compileDataset(subdatasets, path, dataname, keepTempFiles):
         sorted_labels = get_labels_array(path, subdataset)
         data, labels = shuffle(sorted_data, sorted_labels, get_random_order(sorted_data))
         save_npy(subdataset, data, labels, DATASET_PATH)
-    merged = merge(subdatasets)
-    save((path + '/' + dataname), merged)
+    merged = merge(subdatasets, path)
+    save((f'{path}/{dataname}'), merged)
 
     if keepTempFiles == False:
         for subdataset in subdatasets:
             os.remove(f'{path}shuffled_{subdataset}data.npy')
+            os.remove(f'{path}shuffled_{subdataset}labels.npy')
 
     duration = time.time() - duration
-    print(f'{duration} saved as {dataname}.npz to {path}')
+    print(f'({round(duration, 2)}s) dataset saved as {dataname}.npz to {path}')
 
 compileDataset(SUBDATASETS, DATASET_PATH, DATA_NAME, KEEP_TEMP_FILES)
