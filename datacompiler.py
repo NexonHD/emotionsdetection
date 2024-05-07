@@ -11,10 +11,11 @@ from tensorflow import keras
 import time
 #from tensorflow.keras import datasets, layers, models
 
-DATA_NAME = 'testdata'
+DATA_NAME = 'data'
 DATASET_PATH = 'C:/Users/linie/vsc/emotionsdetection/data/'
 LABELS = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'sad', 'surprised']
 SUBDATASETS = ["train", "test"]
+KEEP_TEMP_FILES = False
 
 def get_image_data_array(datasetpath, subdataset):
     i = 0
@@ -63,9 +64,9 @@ def shuffle(data, labels, randomorder):
         shuffled_labels[int(randomindex)] = labels[int(realindex)]
     return shuffled_data,shuffled_labels
 
-def save_npy(subdataset, shuffled_data, shuffled_labels):
-    numpy.save('shuffled_'+ subdataset + 'data.npy', shuffled_data)
-    numpy.save('shuffled_'+ subdataset + 'labels.npy', shuffled_labels)
+def save_npy(subdataset, shuffled_data, shuffled_labels, path):
+    numpy.save(f'{path}shuffled_{subdataset}data.npy', shuffled_data)
+    numpy.save(f'{path}shuffled_{subdataset}labels.npy', shuffled_labels)
 
 def load_npy(subdataset):
     shuffled_data = numpy.load('shuffled_' + subdataset + 'data.npy')
@@ -88,21 +89,26 @@ def merge(subdatasets):
 def save(dataname, mergeddata_dict):
     numpy.savez(dataname, **mergeddata_dict)
 
-def load():
-    mergeddata_dict = numpy.load('data.npz')
+def load(dataname):
+    mergeddata_dict = numpy.load(f'{dataname}.npz')
     return mergeddata_dict
 
 
-def compileDataset(subdatasets, path, dataname):
+def compileDataset(subdatasets, path, dataname, keepTempFiles):
     duration = time.time()
     for subdataset in subdatasets:
         sorted_data = get_image_data_array(path, subdataset)
         sorted_labels = get_labels_array(path, subdataset)
         data, labels = shuffle(sorted_data, sorted_labels, get_random_order(sorted_data))
-        save_npy(subdataset, data, labels)
+        save_npy(subdataset, data, labels, DATASET_PATH)
     merged = merge(subdatasets)
     save((path + '/' + dataname), merged)
+
+    if keepTempFiles == False:
+        for subdataset in subdatasets:
+            os.remove(f'{path}shuffled_{subdataset}data.npy')
+
     duration = time.time() - duration
     print(f'{duration} saved as {dataname}.npz to {path}')
 
-compileDataset(SUBDATASETS, DATASET_PATH, DATA_NAME)
+compileDataset(SUBDATASETS, DATASET_PATH, DATA_NAME, KEEP_TEMP_FILES)
