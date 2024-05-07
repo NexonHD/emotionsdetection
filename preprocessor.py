@@ -9,8 +9,8 @@ def get_cropped_image_if_2_eyes(img):
     #img = cv2.imread(image_path)
     image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    face_cascade = cv2.CascadeClassifier('C:/Users/Yannick/Codes/Emotion Detector/opencv/haarcascades/haarcascade_frontalface_default.xml')
-    eye_cascade = cv2.CascadeClassifier('C:/Users/Yannick/Codes/Emotion Detector/opencv/haarcascades/haarcascade_eye.xml')
+    face_cascade = cv2.CascadeClassifier('emotionsdetection\haarcascade_frontalface_default.xml')
+    eye_cascade = cv2.CascadeClassifier('emotionsdetection\haarcascade_eye.xml')
     faces = face_cascade.detectMultiScale(image_rgb, 1.3, 5)
     for (x,y,w,h) in faces:
         roi_gray = gray[y:y+h, x:x+w]
