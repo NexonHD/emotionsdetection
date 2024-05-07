@@ -30,7 +30,9 @@ def get_image_data_array(datasetpath, subdataset):
             i = i+1
             if (i%100==0):
                 print(i)
-                
+
+    train_images = numpy.transpose(train_images, (1,2,0))
+
     #delete wrong item at index=0
     data = numpy.delete(data, 0, axis=2)
     return data

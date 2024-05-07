@@ -17,6 +17,9 @@ test_labels = mergeddata_dict['3']
 train_images = train_images / 255.0
 test_images = test_images / 255.0
 
+train_images = numpy.transpose(train_images, (2,0,1))
+test_images = numpy.transpose(test_images, (2,0,1))
+
 train_images = numpy.expand_dims(train_images, -1)
 test_images = numpy.expand_dims(test_images, -1)
 
