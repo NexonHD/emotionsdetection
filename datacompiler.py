@@ -103,11 +103,7 @@ def compileDataset(subdatasets, path, dataname, keepTempFiles):
         save_npy(subdataset, data, labels, DATASET_PATH)
     merged = merge(subdatasets)
     save((path + '/' + dataname), merged)
-
-    for subdataset in subdatasets:
-        os.remove(f'{path}shuffled_{subdataset}data.npy')
-
     duration = time.time() - duration
     print(f'{duration} saved as {dataname}.npz to {path}')
 
-compileDataset(SUBDATASETS, DATASET_PATH, DATA_NAME, KEEP_TEMP_FILES)
+compileDataset(SUBDATASETS, DATASET_PATH, DATA_NAME)
