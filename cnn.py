@@ -25,33 +25,8 @@ test_images = numpy.transpose(test_images, (2,0,1))
 train_images = numpy.expand_dims(train_images, -1)
 test_images = numpy.expand_dims(test_images, -1)
 
-
-def create_model():
-    model = models.Sequential()
-
-    model.add(layers.Conv2D(32, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-
-    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-
-    model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-
-    model.add(layers.Flatten())
-
-    model.add(layers.Dense(256, activation='relu'))
-    model.add(layers.Dropout(0.5))
-
-    model.add(layers.Dense(128, activation='relu'))
-    model.add(layers.Dropout(0.5))
-
-    model.add(layers.Dense(7, activation='softmax'))
-
-    return model
-
 if LOAD_MODEL_NAME == '':
-    model = create_model()
+    model = config.create_model()
 else:
     model = tf.keras.models.load_model(LOAD_MODEL_NAME)
 
