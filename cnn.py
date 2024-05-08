@@ -1,11 +1,13 @@
 import numpy
 import tensorflow as tf
-from tensorflow import keras
 import matplotlib.pyplot as plt
-from tensorflow.keras import models, layers
+from tensorflow.keras import models, layers # type: ignore
 
-DATA_LOCATION = 'C:/Users/linie/vsc/emotionsdetection/data/data.npz'
-MODEL_NAME = '1_0.keras'
+import config
+
+DATA_LOCATION = config.NPZ_DATA_LOCATION
+LOAD_MODEL_NAME = config.LOAD_MODEL_FROM_FILE
+SAVE_MODEL_NAME = config.SAVE_MODEL_NAME
 
 mergeddata_dict = numpy.load(DATA_LOCATION)
 
@@ -48,15 +50,17 @@ def create_model():
 
     return model
 
-model = create_model()
-#model = tf.keras.models.load_model(MODEL_NAME)
+if LOAD_MODEL_NAME == '':
+    model = create_model()
+else:
+    model = tf.keras.models.load_model(LOAD_MODEL_NAME)
 
 
 model.compile(optimizer='adam',metrics=['accuracy'], loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True))
-history = model.fit(train_images, train_labels, epochs=5, validation_data=(test_images, test_labels))
+history = model.fit(train_images, train_labels, epochs=15, validation_data=(test_images, test_labels))
 predictions = model.predict(test_images) # Wendet trainiertes Netz auf alle Test-Bilder an und speichert Vorhersagen ab
 
-model.save(MODEL_NAME)
+model.save(SAVE_MODEL_NAME)
 
 test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=0)
 print('\n *** Finale Trefferquote auf Testdaten:', test_acc)

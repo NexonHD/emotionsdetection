@@ -5,11 +5,13 @@ import numpy
 import os as os
 import time
 
-DATA_NAME = 'data'
-DATASET_PATH = 'C:/Users/linie/vsc/emotionsdetection/data/'
-LABELS = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'sad', 'surprised']
-SUBDATASETS = ["train", "test"]
-KEEP_TEMP_FILES = True
+import config
+
+DATA_NAME = config.DATA_NAME
+DATASET_PATH = config.DATASET_PATH
+LABELS = config.LABELS
+SUBDATASETS = config.SUBDATASETS
+KEEP_TEMP_FILES = config.KEEP_TEMP_FILES
 
 def get_image_data_array(datasetpath, subdataset):
     #dataset compiler (dont run, takes a lot of time estimate: 30 minutes) import from .npy instead this is only for creation of .npy files
