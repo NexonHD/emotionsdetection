@@ -1,7 +1,6 @@
 import numpy
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from tensorflow.keras import models, layers # type: ignore
 
 import config
 
@@ -28,14 +27,14 @@ test_images = numpy.expand_dims(test_images, -1)
 if LOAD_MODEL_NAME == '':
     model = config.create_model()
 else:
-    model = tf.keras.models.load_model(LOAD_MODEL_NAME)
+    model = tf.keras.models.load_model(f'model/{LOAD_MODEL_NAME}')
 
 
 model.compile(optimizer='adam',metrics=['accuracy'], loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True))
 history = model.fit(train_images, train_labels, epochs=15, validation_data=(test_images, test_labels))
 predictions = model.predict(test_images) # Wendet trainiertes Netz auf alle Test-Bilder an und speichert Vorhersagen ab
 
-model.save(SAVE_MODEL_NAME)
+model.save(f'model/{SAVE_MODEL_NAME}')
 
 test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=0)
 print('\n *** Finale Trefferquote auf Testdaten:', test_acc)
