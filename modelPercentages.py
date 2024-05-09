@@ -2,8 +2,9 @@ import os
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
+import config
 
-DATA_LOCATION = 'C:/Users/Yannick/Codes/Emotion Detector/dataset/data.npz'
+DATA_LOCATION = config.NPZ_DATA_LOCATION
 mergeddata_dict = np.load(DATA_LOCATION)
 
 test_images = mergeddata_dict['2']
@@ -12,7 +13,7 @@ test_images = test_images / 255.0
 test_images = np.transpose(test_images, (2, 0, 1))
 test_images = np.expand_dims(test_images, -1)
 
-KERAS_DIRECTORY = "C:/Users/Yannick/Codes/Emotion Detector/models"
+KERAS_DIRECTORY = config.KERAS_DIRECTORY
 
 def evaluate_model(model_path, test_images, test_labels):
     try:
