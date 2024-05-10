@@ -17,11 +17,19 @@ def get_cropped_image_if_2_eyes(img):
         roi_color = image_rgb[y:y+h, x:x+w]
         eyes = eye_cascade.detectMultiScale(roi_gray)
         if len(eyes) >= 2:
-            return roi_color
+            return roi_color, (x, y, w, h)
+    return None, None
+
         
 def preprocess_image(img):
     img_only_face = get_cropped_image_if_2_eyes(img)
-    numpydata = np.asarray(img_only_face)
-    resizedImage = cv2.resize(numpydata, (48, 48))
-    grayscaleImage = cv2.cvtColor(resizedImage, cv2.COLOR_BGR2GRAY)
-    return grayscaleImage
+    if img_only_face is not None:
+        try:
+            numpydata = np.asarray(img_only_face)
+            resizedImage = cv2.resize(numpydata, (48, 48))
+            grayscaleImage = cv2.cvtColor(resizedImage, cv2.COLOR_BGR2GRAY)
+            return grayscaleImage
+        except Exception as e:
+            return None
+    else:
+        return None
