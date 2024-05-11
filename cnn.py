@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import ModelCheckpoint
 import config
+from sklearn.metrics import f1_score
 
 
 DATA_LOCATION = config.NPZ_DATA_LOCATION
@@ -29,9 +30,11 @@ train_images = numpy.expand_dims(train_images, -1)
 test_images = numpy.expand_dims(test_images, -1)
 
 if LOAD_MODEL_NAME == '':
-    model = config.create_model()
+    #model = config.create_model()
+    model = config.create_vgg_model()
 else:
     model = tf.keras.models.load_model(LOAD_MODEL_NAME)
+
 
 
 with tf.device('/GPU:0'):
@@ -53,16 +56,26 @@ with tf.device('/GPU:0'):
 
     #model = tf.keras.models.load_model("C:/Users/Yannick/Codes/Emotion Detector/models/2_0-SGD_optimizer-dataaugmentation.keras")
 
-    adam_optimizer = keras.optimizers.Adam(learning_rate=0.0001)
-    sgd_optimizer = keras.optimizers.SGD(learning_rate=0.0001, momentum=0.9)
+    initial_learning_rate = 0.001
+    decay_rate = 0.1
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=initial_learning_rate,
+        decay_steps=10000,
+        decay_rate=decay_rate,
+        staircase=True)
 
-    early_stopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=5, restore_best_weights=True)
+
+    adam_optimizer = keras.optimizers.Adam(learning_rate=lr_schedule)
+    sgd_optimizer = keras.optimizers.SGD(learning_rate=lr_schedule, momentum=0.9)
+
+    early_stopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=10, restore_best_weights=True)
 
     checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + SAVE_MODEL_NAME)  
     checkpoint_callback = ModelCheckpoint(checkpoint_path, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')  
 
-    model.compile(optimizer=adam_optimizer, metrics=['accuracy'], loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True))
-    history = model.fit(train_generator, epochs=200, validation_data=test_generator, callbacks=[early_stopping, checkpoint_callback])
+    model.compile(optimizer=sgd_optimizer, metrics=['accuracy'], loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True))
+    model.load_weights(checkpoint_path)
+    history = model.fit(train_generator, epochs=config.EPOCHS, validation_data=test_generator, callbacks=[checkpoint_callback])
     predictions = model.predict(test_images)
 
     model.load_weights(checkpoint_path)

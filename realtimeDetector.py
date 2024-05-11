@@ -7,7 +7,7 @@ import config
 model = load_model(config.LOAD_MODEL_FROM_FILE)  # Ersetzen Sie 'Ihr_Modellpfad.h5' durch den tatsächlichen Pfad zu Ihrem Modell
 
 # Emotionslabels aus dem FER2013-Dataset
-EMOTIONS_LIST = ["Wütend", "Ekel", "Angst", "Glücklich", "Traurig", "Überrascht", "Neutral"]
+EMOTIONS_LIST = ["Wuetend", "Ekel", "Angst", "Gluecklich", "Neutral", "Traurig", "Ueberrascht"]
 
 # Initialisieren Sie die Kamera
 cap = cv2.VideoCapture(0)
