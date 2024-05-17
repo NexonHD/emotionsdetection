@@ -3,9 +3,10 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
-from kerastuner.tuners import RandomSearch
+from kerastuner.tuners import BayesianOptimization
 import cnn
 import config
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 DATA_LOCATION = 'C:/Users/Yannick/Codes/Emotion Detector/dataset/data.npz'
 MODEL_NAME = 'hyperparameter_sgd'
@@ -79,11 +80,11 @@ def build_model(hp):
     model.compile(optimizer=cnn.sgd_optimizer, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
     return model
 
-tuner = RandomSearch(
+tuner = BayesianOptimization(
     build_model,
     objective='val_accuracy',
     max_trials=15,
-    executions_per_trial=3,
+    executions_per_trial=2,
     directory=config.KERAS_DIRECTORY,
     project_name='emotion_detector_hyperparameter_tuner')
 
@@ -91,7 +92,7 @@ train_generator, test_generator = cnn.DataGenerators()
 
 early_stopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=3, restore_best_weights=True)
 
-tuner.search(train_generator, epochs=20, validation_data=test_generator, callbacks=[early_stopping])
+tuner.search(train_generator, epochs=20, validation_data=test_generator, callbacks=[early_stopping], workers=4, use_multiprocessing=True)
 
 best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
 
@@ -101,11 +102,14 @@ model.summary()
 
 early_stopping_5 = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=5, restore_best_weights=True)
 
-history = model.fit(train_generator, epochs=50, validation_data=test_generator, callbacks=[early_stopping_5])
+checkpoint_path = (config.KERAS_DIRECTORY + "hptuner_sgd.keras")
+checkpoint_callback = ModelCheckpoint(checkpoint_path, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+
+history = model.fit(train_generator, epochs=100, validation_data=test_generator, callbacks=[early_stopping_5, checkpoint_callback])
 
 predictions = model.predict(test_images)
 
-model.save('C:/Users/Yannick/Codes/Emotion Detector/' + MODEL_NAME)
+#model.save('C:/Users/Yannick/Codes/Emotion Detector/' + MODEL_NAME)
 
 test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=0)
 print('\n *** Finale Trefferquote auf Testdaten:', test_acc)
