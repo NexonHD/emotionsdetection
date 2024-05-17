@@ -18,6 +18,11 @@ KERAS_DIRECTORY = config.KERAS_DIRECTORY
 def evaluate_model(model_path, test_images, test_labels):
     try:
         model = keras.models.load_model(model_path)
+        # Überprüfe die Eingabeform des Modells
+        input_shape = model.input_shape
+        if input_shape != (None, 48, 48, 1):
+            return (model_path, None, f"Falsche Eingabeform: erwartet {input_shape}, gefunden (None, 48, 48, 1)", None)
+        
         predictions = model.predict(test_images)
         predicted_labels = np.argmax(predictions, axis=1)
         accuracy = np.mean(predicted_labels == test_labels)
