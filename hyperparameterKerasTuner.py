@@ -6,30 +6,16 @@ import matplotlib.pyplot as plt
 from kerastuner.tuners import RandomSearch
 import cnn
 import config
+import utils
 
-DATA_LOCATION = 'C:/Users/Yannick/Codes/Emotion Detector/dataset/data.npz'
 MODEL_NAME = 'hyperparameter_sgd'
 
-mergeddata_dict = np.load(DATA_LOCATION)
-
-train_images = mergeddata_dict['0']
-train_labels = mergeddata_dict['1']
-test_images = mergeddata_dict['2']
-test_labels = mergeddata_dict['3']
-
-train_images = train_images / 255.0
-test_images = test_images / 255.0
-
-train_images = np.transpose(train_images, (2, 0, 1))
-test_images = np.transpose(test_images, (2, 0, 1))
-
-train_images = np.expand_dims(train_images, -1)
-test_images = np.expand_dims(test_images, -1)
+train_images, train_labels, test_images, test_labels = utils.get_data()
 
 def build_model(hp):
     model = keras.Sequential()
 
-    model.add(layers.Conv2D(hp.Int('conv_filters_1', min_value=32, max_value=512, step=32), (3, 3), activation='relu', padding='same'))
+    model.add(layers.Conv2D(hp.Int('conv_filters_1', min_value=32, max_value=512, step=32), (3, 3), activation='relu', padding='same', input_shape=(48, 48, 1)))
     model.add(layers.BatchNormalization())
     model.add(layers.Conv2D(hp.Int('conv_filters_2', min_value=32, max_value=512, step=32), (3, 3), activation='relu', padding='same'))
     model.add(layers.BatchNormalization())
@@ -76,7 +62,7 @@ def build_model(hp):
 
     model.add(layers.Dense(7, activation='softmax'))
 
-    model.compile(optimizer=cnn.sgd_optimizer, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+    model.compile(optimizer=cnn.get_custom_optimizer('sgd'), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
     return model
 
 tuner = RandomSearch(
@@ -105,12 +91,7 @@ history = model.fit(train_generator, epochs=50, validation_data=test_generator, 
 
 predictions = model.predict(test_images)
 
-model.save('C:/Users/Yannick/Codes/Emotion Detector/' + MODEL_NAME)
+model.save(MODEL_NAME)
 
-test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=0)
-print('\n *** Finale Trefferquote auf Testdaten:', test_acc)
-
-plt.plot(history.history['accuracy'], label='Trainingsdaten')
-plt.plot(history.history['val_accuracy'], label='Testdaten')
-plt.xlabel('Epoche'), plt.ylabel('Trefferquote'), plt.legend(loc='lower right')
-plt.show()
+_, test_acc = model.evaluate(test_images, test_labels, verbose=0)
+utils.print_and_plot_results(history, test_acc)
