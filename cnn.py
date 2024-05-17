@@ -1,41 +1,64 @@
-import numpy
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
+from tensorflow.keras import layers # type: ignore
 import matplotlib.pyplot as plt
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.preprocessing.image import ImageDataGenerator # type: ignore
+from tensorflow.keras.callbacks import ModelCheckpoint # type: ignore
+from tensorflow.keras.optimizers.schedules import ExponentialDecay # type: ignore
 import config
+import utils
 from sklearn.metrics import f1_score
 
+def build_and_compile_model(checkpoint_path):
+    # load model, or create if not existent
+    try:
+        model = tf.keras.models.load_model(config.KERAS_DIRECTORY + config.LOAD_MODEL_FROM_FILE)
+    except Exception:
+        model = config.create_model()
 
-DATA_LOCATION = config.NPZ_DATA_LOCATION
-LOAD_MODEL_NAME = config.LOAD_MODEL_FROM_FILE
-SAVE_MODEL_NAME = config.SAVE_MODEL_NAME
+    # optimizer = get_custom_optimizer('adam')
+    # model.compile(optimizer=optimizer, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+    model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
 
-mergeddata_dict = numpy.load(DATA_LOCATION)
+    # load checkpoint, skip if not existent
+    try:
+        model.load_weights(checkpoint_path)
+    except ValueError and FileNotFoundError:
+        print('weights were not found')
+    return model
 
-train_images = mergeddata_dict['0']
-train_labels = mergeddata_dict['1']
-test_images = mergeddata_dict['2']
-test_labels = mergeddata_dict['3']
+def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end_lr = 0.000001, decay_change_steps = config.EPOCHS):
+    decay_rate = (float(end_lr/initial_learning_rate))**(1.0/decay_change_steps)
+    match type:
+        case 'exponential':
+            exponential_lr_schedule = ExponentialDecay(
+                initial_learning_rate=initial_learning_rate,
+                decay_steps=898*config.EPOCHS // decay_change_steps,  # Anpassung der decay_steps für  langsamere Reduktion
+                decay_rate=decay_rate,
+                staircase=True
+            )
+            return exponential_lr_schedule
+        
+        case 'cosine':
+            cosine_lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=initial_learning_rate,
+                decay_steps=898*config.EPOCHS,
+                alpha=end_lr
+            )
+            return cosine_lr_schedule
 
-train_images = train_images / 255.0
-test_images = test_images / 255.0
 
-train_images = numpy.transpose(train_images, (2,0,1))
-test_images = numpy.transpose(test_images, (2,0,1))
+def get_custom_optimizer(optimizer: str = 'adam'):
+    lr_schedule = get_lr_schedule()
+    match optimizer:
+        case 'adam':
+            return keras.optimizers.Adam(learning_rate=lr_schedule)
+        case 'sgd':
+            return keras.optimizers.SGD(learning_rate=lr_schedule, momentum=0.9)
 
-train_images = numpy.expand_dims(train_images, -1)
-test_images = numpy.expand_dims(test_images, -1)
+def get_datagenerators():
+    train_images, train_labels, test_images, test_labels = utils.get_data()
 
-if LOAD_MODEL_NAME == '':
-    model = config.create_model()
-    #model = config.create_vgg_model()
-else:
-    model = tf.keras.models.load_model(LOAD_MODEL_NAME)
-
-def DataGenerators():
     datagen = ImageDataGenerator(
         rotation_range=10,
         width_shift_range=0.2,
@@ -50,58 +73,27 @@ def DataGenerators():
 
     train_generator = datagen.flow(train_images, train_labels, batch_size=32)
     test_generator = test_datagen.flow(test_images, test_labels, batch_size=32)
+
     return train_generator, test_generator
 
+def train():
+    checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + config.SAVE_MODEL_NAME)  
+    model = build_and_compile_model(checkpoint_path)
 
-def get_lr_schedulers(initial_learning_rate = 0.01, end_lr = 0.000001, decay_change_steps = config.EPOCHS):
-    decay_rate = (float(end_lr/initial_learning_rate))**(1.0/decay_change_steps)
+    with tf.device('/GPU:0'):
 
-    exponential_lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-        initial_learning_rate=initial_learning_rate,
-        decay_steps=898*config.EPOCHS // decay_change_steps,  # Anpassung der decay_steps für  langsamere Reduktion
-        decay_rate=decay_rate,
-        staircase=True
-    )
+        train_generator, test_generator = get_datagenerators()
 
-    cosine_lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
-        initial_learning_rate=initial_learning_rate,
-        decay_steps=898*config.EPOCHS,
-        alpha=end_lr
-    )
+        checkpoint_callback = ModelCheckpoint(checkpoint_path, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')  
+        
+        history = model.fit(train_generator, epochs=config.EPOCHS, validation_data=test_generator, callbacks=[checkpoint_callback])
 
-    return exponential_lr_schedule, cosine_lr_schedule
+        model.load_weights(checkpoint_path)
+        model.save(config.KERAS_DIRECTORY + config.SAVE_MODEL_NAME)
 
+        _, test_acc = model.evaluate(test_generator, verbose=0) # returns test_loss, test_acc but test_loss is not needed
 
+        utils.print_and_plot_results(history, test_acc)
 
-with tf.device('/GPU:0'):
-
-    train_generator, test_generator = DataGenerators()
-
-    #model = tf.keras.models.load_model("C:/Users/Yannick/Codes/Emotion Detector/models/2_0-SGD_optimizer-dataaugmentation.keras")
-
-    exponential_lr_schedule, cosine_lr_schedule = get_lr_schedulers(initial_learning_rate = 0.01, end_lr = 0.000001, decay_change_steps = config.EPOCHS)
-
-
-    adam_optimizer = keras.optimizers.Adam(learning_rate=exponential_lr_schedule)
-    sgd_optimizer = keras.optimizers.SGD(learning_rate=exponential_lr_schedule, momentum=0.9)
-
-    early_stopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=10, restore_best_weights=True)
-
-    checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + SAVE_MODEL_NAME)
-    checkpoint_callback = ModelCheckpoint(checkpoint_path, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')  
-
-    model.compile(optimizer=adam_optimizer, metrics=['accuracy'], loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True))
-    #model.load_weights(checkpoint_path)
-    history = model.fit(train_generator, epochs=config.EPOCHS, validation_data=test_generator, callbacks=[checkpoint_callback])
-    predictions = model.predict(test_images)
-
-    model.load_weights(checkpoint_path)
-    model.save(config.KERAS_DIRECTORY + SAVE_MODEL_NAME)
-
-    test_loss, test_acc = model.evaluate(test_generator, verbose=0)
-    print('\n *** Finale Trefferquote auf Testdaten:', test_acc)
-
-    plt.plot(history.history['accuracy'], label='Trainingsdaten')
-    plt.plot(history.history['val_accuracy'], label='Testdaten')
-    plt.xlabel('Epoche'), plt.ylabel('Trefferquote'), plt.legend(loc='lower right')
-    plt.show()
+if __name__ == '__main__':
+    train()
