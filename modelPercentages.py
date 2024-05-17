@@ -1,7 +1,6 @@
 import os
 import numpy as np
-import tensorflow as tf
-import tensorflow.keras as keras
+import keras as keras
 import config
 
 DATA_LOCATION = config.NPZ_DATA_LOCATION
