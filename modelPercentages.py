@@ -34,9 +34,12 @@ keras_files = os.listdir(KERAS_DIRECTORY)
 results = []
 
 for file in keras_files:
-    model_path = os.path.join(KERAS_DIRECTORY, file)
-    result = evaluate_model(model_path, test_images, test_labels)
-    results.append(result)
+    try:
+        model_path = os.path.join(KERAS_DIRECTORY, file)
+        result = evaluate_model(model_path, test_images, test_labels)
+        results.append(result)
+    except ValueError:
+        print(f'{file = }: has an undefined shape')
 
 # Filtere die Ergebnisse, um nur die Modelle mit verfügbarer Genauigkeit zu behalten
 results = [result for result in results if result[1] is not None]
