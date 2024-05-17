@@ -18,6 +18,11 @@ KERAS_DIRECTORY = config.KERAS_DIRECTORY
 def evaluate_model(model_path, test_images, test_labels):
     try:
         model = keras.models.load_model(model_path)
+        # Überprüfe die Eingabeform des Modells
+        input_shape = model.input_shape
+        if input_shape != (None, 48, 48, 1):
+            return (model_path, None, f"Falsche Eingabeform: erwartet {input_shape}, gefunden (None, 48, 48, 1)", None)
+        
         predictions = model.predict(test_images)
         predicted_labels = np.argmax(predictions, axis=1)
         accuracy = np.mean(predicted_labels == test_labels)
@@ -29,9 +34,12 @@ keras_files = os.listdir(KERAS_DIRECTORY)
 results = []
 
 for file in keras_files:
-    model_path = os.path.join(KERAS_DIRECTORY, file)
-    result = evaluate_model(model_path, test_images, test_labels)
-    results.append(result)
+    try:
+        model_path = os.path.join(KERAS_DIRECTORY, file)
+        result = evaluate_model(model_path, test_images, test_labels)
+        results.append(result)
+    except ValueError:
+        print(f'{file = }: has an undefined shape')
 
 # Filtere die Ergebnisse, um nur die Modelle mit verfügbarer Genauigkeit zu behalten
 results = [result for result in results if result[1] is not None]
