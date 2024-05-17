@@ -1,8 +1,6 @@
-import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
-import matplotlib.pyplot as plt
+from keras import layers
 from kerastuner.tuners import RandomSearch
 import cnn
 import config
