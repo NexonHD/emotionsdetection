@@ -1,10 +1,8 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers # type: ignore
-import matplotlib.pyplot as plt
-from tensorflow.keras.preprocessing.image import ImageDataGenerator # type: ignore
-from tensorflow.keras.callbacks import ModelCheckpoint # type: ignore
-from tensorflow.keras.optimizers.schedules import ExponentialDecay # type: ignore
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ModelCheckpoint
+from keras.optimizers.schedules import ExponentialDecay
 import config
 import utils
 from sklearn.metrics import f1_score
