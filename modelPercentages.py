@@ -40,7 +40,7 @@ def evaluate_models(dir: str = config.KERAS_DIRECTORY):
     results = filter_and_sort(results)
     print_results(results)
 
-def filter_and_sort() -> list:
+def filter_and_sort(results) -> list:
     # delete results with invalid/inexistent value
     results = [result for result in results if result[1] is not None]
 
