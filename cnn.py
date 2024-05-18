@@ -5,7 +5,7 @@ from keras.callbacks import ModelCheckpoint
 from keras.optimizers.schedules import ExponentialDecay
 import config
 import utils
-from sklearn.metrics import f1_score
+from os.path import isfile
 
 def build_and_compile_model(checkpoint_path):
     # load model, or create if not existent
@@ -22,7 +22,7 @@ def build_and_compile_model(checkpoint_path):
     try:
         model.load_weights(checkpoint_path)
     except ValueError and FileNotFoundError:
-        print('weights were not found')
+        print(f'weights were not found at {checkpoint_path = }')
     return model
 
 def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end_lr = 0.000001, decay_change_steps = config.EPOCHS):
@@ -44,10 +44,13 @@ def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end
                 alpha=end_lr
             )
             return cosine_lr_schedule
+        
+        case 'constant':
+            return initial_learning_rate
 
 
 def get_custom_optimizer(optimizer: str = 'adam'):
-    lr_schedule = get_lr_schedule()
+    lr_schedule = get_lr_schedule(type='constant', initial_learning_rate=0.0001)
     match optimizer:
         case 'adam':
             return keras.optimizers.Adam(learning_rate=lr_schedule)
@@ -74,8 +77,19 @@ def get_datagenerators():
 
     return train_generator, test_generator
 
+def check_if_checkpoint_already_exists(checkpoint_path: str):
+    if isfile(checkpoint_path):
+        print(f'\nCheckpoint: {checkpoint_path} already exists, do you wish to overwrite it?')
+        user_input = input('Y/N\n')
+        if user_input == 'N':
+            quit()
+        if not user_input == 'Y':
+            print(f'invalid input: {user_input}')
+            check_if_checkpoint_already_exists(checkpoint_path)
+
 def train():
-    checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + config.SAVE_MODEL_NAME)  
+    checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + config.SAVE_MODEL_NAME)
+    check_if_checkpoint_already_exists(checkpoint_path)
     model = build_and_compile_model(checkpoint_path)
 
     with tf.device('/GPU:0'):
