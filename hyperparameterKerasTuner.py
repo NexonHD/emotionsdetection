@@ -2,13 +2,10 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 from kerastuner.tuners import RandomSearch
+from keras.callbacks import EarlyStopping
 import cnn
 import config
 import utils
-
-MODEL_NAME = 'hyperparameter_sgd'
-
-train_images, train_labels, test_images, test_labels = utils.get_data()
 
 def build_model(hp):
     model = keras.Sequential()
@@ -63,33 +60,47 @@ def build_model(hp):
     model.compile(optimizer=cnn.get_custom_optimizer('sgd'), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
     return model
 
-tuner = RandomSearch(
-    build_model,
-    objective='val_accuracy',
-    max_trials=15,
-    executions_per_trial=3,
-    directory=config.KERAS_DIRECTORY,
-    project_name='emotion_detector_hyperparameter_tuner')
+def get_tuner() -> RandomSearch:
+    tuner = RandomSearch(
+        build_model,
+        objective='val_accuracy',
+        max_trials=15,
+        executions_per_trial=3,
+        directory=config.KERAS_DIRECTORY,
+        project_name='emotion_detector_hyperparameter_tuner')
+    return tuner
 
-train_generator, test_generator = cnn.DataGenerators()
+def early_stopping(patience: int) -> EarlyStopping:
+    return EarlyStopping(monitor='val_accuracy', patience=patience, restore_best_weights=True)
 
-early_stopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=3, restore_best_weights=True)
+def start_tuner_and_get_model_with_best_hps(train_gen, test_gen):
+    tuner = get_tuner()
 
-tuner.search(train_generator, epochs=20, validation_data=test_generator, callbacks=[early_stopping])
+    tuner.search(train_gen, epochs=20, validation_data=test_gen, callbacks=[early_stopping(3)])
 
-best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+    best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
 
-model = tuner.hypermodel.build(best_hps)
+    return tuner.hypermodel.build(best_hps)
 
-model.summary()
+def main():
+    train_generator, test_generator = cnn.get_datagenerators()
 
-early_stopping_5 = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=5, restore_best_weights=True)
+    # get best model of trial
+    model = start_tuner_and_get_model_with_best_hps(train_generator, test_generator)
 
-history = model.fit(train_generator, epochs=50, validation_data=test_generator, callbacks=[early_stopping_5])
+    # print model summary
+    model.summary()
 
-predictions = model.predict(test_images)
+    # train model for another 50 epochs
+    history = model.fit(train_generator, epochs=50, validation_data=test_generator, callbacks=[early_stopping(5)])
 
-model.save(MODEL_NAME)
+    # save model
+    model.save(config.HP_MODEL_NAME)
 
-_, test_acc = model.evaluate(test_images, test_labels, verbose=0)
-utils.print_and_plot_results(history, test_acc)
+    # print results
+    _, _, test_images, test_labels = utils.get_data()
+    _, test_acc = model.evaluate(test_images, test_labels, verbose=0)
+    utils.print_and_plot_results(history, test_acc)
+
+if __name__ == '__main__':
+    main()
