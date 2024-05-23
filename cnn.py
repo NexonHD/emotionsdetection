@@ -2,7 +2,6 @@ import tensorflow as tf
 from tensorflow import keras
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ModelCheckpoint
-from keras.optimizers.schedules import ExponentialDecay
 import config
 import utils
 from os.path import isfile
@@ -29,7 +28,7 @@ def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end
     decay_rate = (float(end_lr/initial_learning_rate))**(1.0/decay_change_steps)
     match type:
         case 'exponential':
-            exponential_lr_schedule = ExponentialDecay(
+            exponential_lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=initial_learning_rate,
                 decay_steps=(898 * 32) / batch_size,  # Anpassung der decay_steps für  langsamere Reduktion
                 decay_rate=decay_rate,
