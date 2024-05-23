@@ -45,8 +45,9 @@ with tf.device('/GPU:0'):
             most_likely_emotion = EMOTIONS_LIST[max_index]
             probability = predictions[0][max_index]
             colorFactor = probability + ((1-probability)/2)
-            probability = f'{probability:.2f}'
             probability = probability * 100
+            probability = f'{probability:.2f}'
+            
 
             # Zeichnen Sie ein Rechteck um das Gesicht und beschriften Sie es mit der wahrscheinlichsten Emotion
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255 * colorFactor, 0), 2)

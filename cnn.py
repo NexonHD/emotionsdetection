@@ -7,7 +7,6 @@ from tensorflow.keras.callbacks import ModelCheckpoint # type: ignore
 from tensorflow.keras.optimizers.schedules import ExponentialDecay # type: ignore
 import config
 import utils
-from sklearn.metrics import f1_score
 
 def build_and_compile_model(checkpoint_path):
     # load model, or create if not existent
@@ -27,13 +26,13 @@ def build_and_compile_model(checkpoint_path):
         print('weights were not found')
     return model
 
-def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end_lr = 0.000001, decay_change_steps = config.EPOCHS):
+def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end_lr = 0.000001, decay_change_steps = config.EPOCHS, batch_size = 32):
     decay_rate = (float(end_lr/initial_learning_rate))**(1.0/decay_change_steps)
     match type:
         case 'exponential':
             exponential_lr_schedule = ExponentialDecay(
                 initial_learning_rate=initial_learning_rate,
-                decay_steps=898*config.EPOCHS // decay_change_steps,  # Anpassung der decay_steps für  langsamere Reduktion
+                decay_steps=(898 * 32) / batch_size,  # Anpassung der decay_steps für  langsamere Reduktion
                 decay_rate=decay_rate,
                 staircase=True
             )
@@ -48,33 +47,34 @@ def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end
             return cosine_lr_schedule
 
 
-def get_custom_optimizer(optimizer: str = 'adam'):
-    lr_schedule = get_lr_schedule()
+def get_custom_optimizer(optimizer: str = 'adam', batch_size = 32):
+    lr_schedule = get_lr_schedule(batch_size=batch_size)
     match optimizer:
         case 'adam':
             return keras.optimizers.Adam(learning_rate=lr_schedule)
         case 'sgd':
             return keras.optimizers.SGD(learning_rate=lr_schedule, momentum=0.9)
 
-def get_datagenerators():
-    train_images, train_labels, test_images, test_labels = utils.get_data()
+def get_datagenerators(batch_size = 32):
+    with tf.device('/CPU:0'):
+        train_images, train_labels, test_images, test_labels = utils.get_data()
 
-    datagen = ImageDataGenerator(
-        rotation_range=10,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.2,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode='nearest'
-    )
+        datagen = ImageDataGenerator(
+            rotation_range=10,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True,
+            fill_mode='nearest'
+        )
 
-    test_datagen = ImageDataGenerator()
+        test_datagen = ImageDataGenerator()
 
-    train_generator = datagen.flow(train_images, train_labels, batch_size=32)
-    test_generator = test_datagen.flow(test_images, test_labels, batch_size=32)
+        train_generator = datagen.flow(train_images, train_labels, batch_size=batch_size)
+        test_generator = test_datagen.flow(test_images, test_labels, batch_size=batch_size)
 
-    return train_generator, test_generator
+        return train_generator, test_generator
 
 def train():
     checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + config.SAVE_MODEL_NAME)  
@@ -95,5 +95,5 @@ def train():
 
         utils.print_and_plot_results(history, test_acc)
 
-if __name__ == '__main__':
-    train()
+#if __name__ == '__main__':
+    #train()
