@@ -1,12 +1,11 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers # type: ignore
-import matplotlib.pyplot as plt
-from tensorflow.keras.preprocessing.image import ImageDataGenerator # type: ignore
-from tensorflow.keras.callbacks import ModelCheckpoint # type: ignore
-from tensorflow.keras.optimizers.schedules import ExponentialDecay # type: ignore
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ModelCheckpoint
+from keras.optimizers.schedules import ExponentialDecay
 import config
 import utils
+from os.path import isfile
 
 def build_and_compile_model(checkpoint_path):
     # load model, or create if not existent
@@ -23,10 +22,10 @@ def build_and_compile_model(checkpoint_path):
     try:
         model.load_weights(checkpoint_path)
     except ValueError and FileNotFoundError:
-        print('weights were not found')
+        print(f'weights were not found at {checkpoint_path = }')
     return model
 
-def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end_lr = 0.000001, decay_change_steps = config.EPOCHS, batch_size = 32):
+def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end_lr = 0.00001, decay_change_steps = config.EPOCHS, batch_size = 32):
     decay_rate = (float(end_lr/initial_learning_rate))**(1.0/decay_change_steps)
     match type:
         case 'exponential':
@@ -45,6 +44,9 @@ def get_lr_schedule(type: str = 'exponential', initial_learning_rate = 0.01, end
                 alpha=end_lr
             )
             return cosine_lr_schedule
+        
+        case 'constant':
+            return initial_learning_rate
 
 
 def get_custom_optimizer(optimizer: str = 'adam', batch_size = 32):
@@ -76,8 +78,19 @@ def get_datagenerators(batch_size = 32):
 
         return train_generator, test_generator
 
+def check_if_checkpoint_already_exists(checkpoint_path: str):
+    if isfile(checkpoint_path):
+        print(f'\nCheckpoint: {checkpoint_path} already exists, do you wish to overwrite it?')
+        user_input = input('Y/N\n')
+        if user_input == 'N':
+            quit()
+        if not user_input == 'Y':
+            print(f'invalid input: {user_input}')
+            check_if_checkpoint_already_exists(checkpoint_path)
+
 def train():
-    checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + config.SAVE_MODEL_NAME)  
+    checkpoint_path = (config.KERAS_DIRECTORY + "bestweightsfor_" + config.SAVE_MODEL_NAME)
+    check_if_checkpoint_already_exists(checkpoint_path)
     model = build_and_compile_model(checkpoint_path)
 
     with tf.device('/GPU:0'):
@@ -95,5 +108,8 @@ def train():
 
         utils.print_and_plot_results(history, test_acc)
 
-#if __name__ == '__main__':
-    #train()
+
+
+if __name__ == '__main__':
+    train()
+

@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 
 def get_data(set: str = 'train'):
     DATA_LOCATION = config.NPZ_DATA_LOCATION
-    LOAD_MODEL_NAME = config.LOAD_MODEL_FROM_FILE
-    SAVE_MODEL_NAME = config.SAVE_MODEL_NAME
 
     mergeddata_dict = np.load(DATA_LOCATION)
 
@@ -19,7 +17,7 @@ def get_data(set: str = 'train'):
 
     train_images = np.transpose(train_images, (2,0,1))
     test_images = np.transpose(test_images, (2,0,1))
-
+    
     train_images = np.expand_dims(train_images, -1)
     test_images = np.expand_dims(test_images, -1)
     return (train_images, train_labels, test_images, test_labels)
